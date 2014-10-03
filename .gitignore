@@ -1,0 +1,12 @@
+app/libs/*
+node_modules/*
+*/node_modules/*
+server-config-secret.js
+server/server-config-secret.js
+*.suo
+*.sln
+*.njsproj
+.DS_Store
+config.json
+word-to-pdf/src/packages/
+word-to-pdf/src/obj/

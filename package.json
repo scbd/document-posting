@@ -1,0 +1,16 @@
+{
+  "name": "document-posting-agent",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "aws-sdk": "2.2.9",
+    "co": "4.6.0",
+    "console-stamp": "^0.2.4",
+    "superagent": "^1.4.0",
+    "temp": "^0.8.3",
+    "when": "3.7.3"
+  },
+  "engines": {
+    "node": ">=4.1.0"
+  }
+}
