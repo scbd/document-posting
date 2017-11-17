@@ -10,3 +10,5 @@ server/server-config-secret.js
 config.json
 word-to-pdf/src/packages/
 word-to-pdf/src/obj/
+
+package-lock\.json

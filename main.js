@@ -4,7 +4,6 @@ require("console-stamp")(console, {pattern: 'ddd dd HH:MM:ss'});
 
 var AWS           = require('aws-sdk');
 var child_process = require('child_process');
-var co            = require('co');
 var fs            = require('fs');
 var nodefn        = require('when/node/function');
 var path          = require('path');
@@ -19,7 +18,7 @@ var S3 = new AWS.S3({
     accessKeyId: config.awsAccessKeys.global.accessKeyId,
     secretAccessKey: config.awsAccessKeys.global.secretAccessKey,
     region: 'us-east-1',
-    apiVersion: '2006-03-01',
+    apiVersion: '2006-03-01'
 });
 
 S3.listObjects  = nodefn.lift(S3.listObjects .bind(S3));
@@ -27,30 +26,36 @@ S3.getObject    = nodefn.lift(S3.getObject   .bind(S3));
 S3.putObject    = nodefn.lift(S3.putObject   .bind(S3));
 S3.deleteObject = nodefn.lift(S3.deleteObject.bind(S3));
 
-return when(co(function* () {
+//============================================================
+//
+//
+//============================================================
+async function main() {
+    try {
 
-    while(true) {
-        let hasDocument = yield poll();
-        yield when(0).delay(hasDocument ? 5*1000 : 60*1000);
+        while(true) {
+            let hasDocument = await poll();
+            await when(0).delay(hasDocument ? 5*1000 : 60*1000);
+        }
+
+    } catch (error) {
+        console.error(`[ERROR] ${error}\n${error.stack}`);
     }
+}
 
-})).catch(function (error) {
-
-    console.log(`[ERROR] ${error}`);
-});
 
 //============================================================
 //
 //
 //============================================================
-function* poll() {
+async function poll() {
 
     console.log('polling...');
 
-    let documents = yield S3.listObjects({ Bucket: BUCKET, Prefix: 'source/', MaxKeys: 2 });
+    let documents = await S3.listObjects({ Bucket: BUCKET, Prefix: 'source/', MaxKeys: 2 });
 
     if(documents.Contents.length>1) {
-        yield processKey(documents.Contents[1].Key);
+        await processKey(documents.Contents[1].Key);
         return true;
     }
 
@@ -61,7 +66,7 @@ function* poll() {
 //
 //
 //============================================================
-function* processKey(key) {
+async function processKey(key) {
 
     console.log(`[info] Processing ${key}...`);
 
@@ -73,7 +78,7 @@ function* processKey(key) {
 
     // GET SOURCE FILE
 
-    let source = yield S3.getObject({ Bucket: BUCKET, Key: key });
+    let source = await S3.getObject({ Bucket: BUCKET, Key: key });
     fs.writeFileSync(sourceFile, source.Body);
 
     let md5 = source.ETag.replace(/"/g, '');
@@ -83,21 +88,27 @@ function* processKey(key) {
 
     let result = child_process.spawnSync(WORD2PDF, [sourceFile], { timeout : 30*1000 });
 
-    console.log(result.stdout.toString('utf-8'));
+    console.log((result.stdout||'{ "error": "NO-STDOUT" }').toString('utf-8'));
 
-    yield S3.putObject({ Bucket: BUCKET, Key: targetKey+'.txt', Body: result.stdout });
+    await S3.putObject({ Bucket: BUCKET, Key: targetKey+'.txt', Body: result.stdout });
 
 
     // UPLOAD TARGET
 
     if(result.status===0) {
         let targetData = fs.readFileSync(targetFile);
-        yield S3.putObject({ Bucket: BUCKET, Key: targetKey, Body: targetData, Metadata: { md5: md5 } });
+        await S3.putObject({ Bucket: BUCKET, Key: targetKey, Body: targetData, Metadata: { md5: md5 } });
     }
 
     // DELETE SOURCE
 
-    yield S3.deleteObject({ Bucket: BUCKET, Key: key });
+    await S3.deleteObject({ Bucket: BUCKET, Key: key });
 
     console.log(`[info] Processing ${key}...`, result.status===0 ? 'DONE' : 'ERROR');
 }
+
+//============================================================
+//============================================================
+//============================================================
+//============================================================
+main();
