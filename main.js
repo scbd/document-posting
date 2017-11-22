@@ -84,18 +84,29 @@ async function processKey(key) {
     let md5 = source.ETag.replace(/"/g, '');
 
     // GENERATE PDF
+
     console.log(`${sourceFile} -> ${targetFile}`);
 
-    let result = child_process.spawnSync(WORD2PDF, [sourceFile], { timeout : 30*1000 });
+    let proc, result;
 
-    console.log((result.stdout||'{ "error": "NO-STDOUT" }').toString('utf-8'));
+    try {
+        proc   = child_process.spawnSync(WORD2PDF, [sourceFile], { timeout : 30*1000 });
+        result = JSON.parse((proc.stdout||'').toString('utf-8'));
+    }
+    catch(err) {
+         result = {
+             error: (proc.stderr||'').toString('utf-8') || (proc.error||'').toString() || (err||'').toString() || 'NO-OUTPUT'
+         }
+    }
 
-    await S3.putObject({ Bucket: BUCKET, Key: targetKey+'.txt', Body: result.stdout });
+    console.log(JSON.strinify(result, null, '  '));
+
+    await S3.putObject({ Bucket: BUCKET, Key: targetKey+'.txt', Body: JSON.strinify(result) });
 
 
     // UPLOAD TARGET
 
-    if(result.status===0) {
+    if(proc.status===0) {
         let targetData = fs.readFileSync(targetFile);
         await S3.putObject({ Bucket: BUCKET, Key: targetKey, Body: targetData, Metadata: { md5: md5 } });
     }
@@ -104,7 +115,7 @@ async function processKey(key) {
 
     await S3.deleteObject({ Bucket: BUCKET, Key: key });
 
-    console.log(`[info] Processing ${key}...`, result.status===0 ? 'DONE' : 'ERROR');
+    console.log(`[info] Processing ${key}...`, proc.status===0 ? 'DONE' : 'ERROR');
 }
 
 //============================================================
