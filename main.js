@@ -8,11 +8,11 @@ var fs            = require('fs');
 var nodefn        = require('when/node/function');
 var path          = require('path');
 var temp          = require('temp');
-var when          = require('when');
 var config        = require(process.env.CONFIG_FILE);
 
 var BUCKET   = 'cbd.document-agent';
 var WORD2PDF = path.join(process.cwd(), 'word-to-pdf', 'WordToPdf.exe');
+let lastError = null;
 
 var S3 = new AWS.S3({
     accessKeyId: config.awsAccessKeys.global.accessKeyId,
@@ -30,17 +30,34 @@ S3.deleteObject = nodefn.lift(S3.deleteObject.bind(S3));
 //
 //
 //============================================================
-async function main() {
+async function mainLoop() {
+
+    let nextLoop = 60*1000;
+
     try {
 
-        while(true) {
-            let hasDocument = await poll();
-            await when(0).delay(hasDocument ? 5*1000 : 60*1000);
-        }
+        if(await poll())
+            nextLoop = 5*1000;
+
+        lastError = null;
 
     } catch (error) {
+
+        nextLoop = 15*1000;
+
+        lastError = error;
+
+        if(error.stack) {
+            lastError = {
+                message: error.message,
+                stack : error.stack
+            }
+        }
+
         console.error(`[ERROR] ${error}\n${error.stack}`);
     }
+
+    setTimeout(mainLoop, nextLoop);
 }
 
 
@@ -104,6 +121,19 @@ async function processKey(key) {
 
     await S3.deleteObject({ Bucket: BUCKET, Key: key });
 
+    if(result.status!==0) {
+
+        let error = null;
+
+        try {
+            error = JSON.parse(result.stdout);
+        } catch(e) {
+            error = result.stdout || { "error": "NO-STDOUT" } || e;
+        }
+
+        throw error
+    }
+
     console.log(`[info] Processing ${key}...`, result.status===0 ? 'DONE' : 'ERROR');
 }
 
@@ -111,4 +141,14 @@ async function processKey(key) {
 //============================================================
 //============================================================
 //============================================================
-main();
+mainLoop();
+
+var app = require('express')();
+
+app.get('/', function(req, res) {
+    res.status(200).send(lastError ? { date: new Date(), error: lastError } : `OK\n${new Date().toISOString()}`);
+});
+
+app.listen(process.env.PORT || 8080, '0.0.0.0', function(){
+    console.info('info: Listening on %j', this.address());
+});
