@@ -103,7 +103,7 @@ async function processKey(key) {
     // GENERATE PDF
     console.log(`${sourceFile} -> ${targetFile}`);
 
-    let result = child_process.spawnSync(WORD2PDF, [sourceFile], { timeout : 30*1000 });
+    let result = child_process.spawnSync(WORD2PDF, [sourceFile], { timeout : 5*60*1000 });
 
     console.log((result.stdout||'{ "error": "NO-STDOUT" }').toString('utf-8'));
 
