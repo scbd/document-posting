@@ -1,10 +1,12 @@
 {
   "name": "document-posting-agent",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "dependencies": {
     "aws-sdk": "2.2.9",
     "console-stamp": "^0.2.4",
+    "convertapi": "^1.14.0",
+    "dotenv": "^16.4.5",
     "express": "4.16.2",
     "temp": "0.8.3",
     "when": "3.7.3"
